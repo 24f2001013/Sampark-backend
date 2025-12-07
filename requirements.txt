@@ -6,4 +6,4 @@ Flask-Migrate==4.0.5
 PyJWT==2.8.0
 python-dotenv==1.0.0
 gunicorn==21.2.0
-psycopg2-binary==2.9.9
+psycopg2-binary>=2.9.10
