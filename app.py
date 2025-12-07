@@ -270,32 +270,14 @@ def get_all_users():
     users = User.query.all()
     return jsonify([user.to_dict() for user in users]), 200
 
-@app.route('/create-admin')
-def create_admin():
-    from werkzeug.security import generate_password_hash
 
-    admin = User(
-        name="Admin",
-        email="admin@example.com",
-        phone="9999999999",
-        college="Admin",
-        password=generate_password_hash("admin123"),
-        is_admin=True
-    )
-
-    db.session.add(admin)
-
-    try:
-        db.session.commit()
-        return {"message": "Admin created successfully"}
-    except Exception as e:
-        return {"error": str(e)}, 500
 
 
 # ==================== RUN APP ====================
 
-with app.app_context():
-    db.create_all()
+
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)
