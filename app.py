@@ -10,7 +10,18 @@ from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
-CORS(app)
+
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:5173",
+            "http://localhost:5174", 
+            "https://sampark-frontend-beta.vercel.app"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 from models import db  # import the unbound db
 db.init_app(app)       # bind it to the Flask app
@@ -48,17 +59,27 @@ def register_user():
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
 
-@app.route('/api/admin/pending-users', methods=['GET'])
+@app.route('/api/admin/pending-registrations', methods=['GET', 'OPTIONS'])
 def get_pending_registrations():
     """Admin: Get all pending registrations"""
+    
+    # Handle OPTIONS preflight
+    if request.method == 'OPTIONS':
+        return '', 204
+    
     token = request.headers.get('Authorization')
     user_data = verify_token(token)
     
     if not user_data or not user_data.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 401
     
-    pending_users = User.query.filter_by(status='pending').all()
-    return jsonify([user.to_dict() for user in pending_users]), 200
+    try:
+        pending_users = User.query.filter_by(status='pending').all()
+        print(f"✅ Found {len(pending_users)} pending users")
+        return jsonify([user.to_dict() for user in pending_users]), 200
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/approve/<int:user_id>', methods=['POST'])
 def approve_registration(user_id):
