@@ -105,6 +105,30 @@ def approve_registration(user_id):
     
     return jsonify({'message': 'User approved and credentials sent'}), 200
 
+@app.route('/api/admin/reject/<int:user_id>', methods=['POST', 'OPTIONS'])
+def reject_registration(user_id):
+    """Admin: Reject a registration"""
+    
+    # Handle OPTIONS preflight
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    token = request.headers.get('Authorization')
+    user_data = verify_token(token)
+    
+    if not user_data or not user_data.get('is_admin'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Update status to rejected
+    user.status = 'rejected'
+    db.session.commit()
+    
+    return jsonify({'message': 'User registration rejected'}), 200
+
 # ==================== AUTHENTICATION ROUTES ====================
 
 @app.route('/api/login', methods=['POST'])
