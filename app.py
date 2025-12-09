@@ -101,7 +101,12 @@ def approve_registration(user_id):
     db.session.commit()
     
     # Send email with credentials
-    send_credentials_email(user.email, user.registration_number, password)
+    try:
+        send_credentials_email(user.email, user.registration_number, password)
+        print("Email sent successfully")
+    except Exception as e:
+        print("EMAIL ERROR:", e)
+
     
     return jsonify({'message': 'User approved and credentials sent'}), 200
 
