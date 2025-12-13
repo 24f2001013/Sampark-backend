@@ -10,7 +10,7 @@ class Config:
     
     # Database
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        'DATABASE_PRIVATE_URL', 
+        'DATABASE_URL', 
         'sqlite:///sampark.db'  # Default to SQLite for development
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
