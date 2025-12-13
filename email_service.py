@@ -8,8 +8,38 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-MAIL_PORT = int(os.getenv('MAIL_PORT', 587))  # Changed default to 587 for SendGrid
+def get_mail_server():
+    """Get MAIL_SERVER with DNS fallback to IP"""
+    mail_server = os.getenv('MAIL_SERVER', 'smtp.sendgrid.net')
+    
+    # Try to resolve DNS first
+    try:
+        socket.gethostbyname(mail_server)
+        print(f"✅ DNS resolved: {mail_server}")
+        return mail_server
+    except socket.gaierror:
+        print(f"⚠️ DNS failed for {mail_server}, using IP address fallback...")
+        
+        # SendGrid IP addresses (stable, multiple for redundancy)
+        if 'sendgrid' in mail_server:
+            sendgrid_ips = [
+                '167.89.118.53',   # SendGrid primary SMTP IP
+                '167.89.115.32',   # SendGrid backup
+            ]
+            for ip in sendgrid_ips:
+                print(f"  Trying SendGrid IP: {ip}")
+                return ip
+        
+        # Gmail IPs (if someone wants to try)
+        if 'gmail' in mail_server:
+            print("  Using Gmail IP: 142.250.185.108")
+            return '142.250.185.108'
+        
+        # Return original and let it fail with clear error
+        return mail_server
+
+MAIL_SERVER = get_mail_server()
+MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
 MAIL_USERNAME = os.getenv('MAIL_USERNAME')
 MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
 MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME)
@@ -49,30 +79,24 @@ def send_email(to_email, subject, html_content):
         
         # Use SMTP_SSL for port 465, use SMTP with STARTTLS for port 587
         if MAIL_PORT == 465:
-            # Port 465 uses SSL from the start
             with smtplib.SMTP_SSL(MAIL_SERVER, MAIL_PORT, timeout=30) as server:
                 print(f"✅ Connected to SMTP server with SSL")
-                
                 print(f"📧 Logging in as {MAIL_USERNAME}...")
                 server.login(MAIL_USERNAME, MAIL_PASSWORD)
                 print(f"✅ Login successful")
-                
                 print(f"📧 Sending message...")
                 server.send_message(msg)
                 print(f"✅ Message sent")
         else:
-            # Port 587 uses STARTTLS (SendGrid, Mailgun, most services)
+            # Port 587 with STARTTLS
             with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=30) as server:
                 print(f"✅ Connected to SMTP server")
-                
                 print(f"📧 Starting TLS...")
                 server.starttls()
                 print(f"✅ TLS started")
-                
                 print(f"📧 Logging in as {MAIL_USERNAME}...")
                 server.login(MAIL_USERNAME, MAIL_PASSWORD)
                 print(f"✅ Login successful")
-                
                 print(f"📧 Sending message...")
                 server.send_message(msg)
                 print(f"✅ Message sent")
@@ -83,34 +107,30 @@ def send_email(to_email, subject, html_content):
     except smtplib.SMTPAuthenticationError as e:
         print(f"\n❌ SMTP AUTHENTICATION FAILED!")
         print(f"Error: {e}")
-        print(f"This usually means:")
-        print(f"  1. Wrong username or password")
-        print(f"  2. For SendGrid: MAIL_USERNAME must be 'apikey' exactly")
-        print(f"  3. For SendGrid: MAIL_PASSWORD must be your API key (starts with SG.)")
-        print(f"  4. For Gmail: Not using App Password (must be 16 chars)\n")
+        print(f"For SendGrid:")
+        print(f"  - MAIL_USERNAME must be exactly 'apikey'")
+        print(f"  - MAIL_PASSWORD must be your SendGrid API key (starts with SG.)")
+        print(f"  - Check API key has 'Mail Send' permissions\n")
         return False
         
     except socket.gaierror as e:
         print(f"\n❌ DNS RESOLUTION FAILED!")
         print(f"Error: {e}")
         print(f"Cannot resolve hostname: {MAIL_SERVER}")
-        print(f"Check your MAIL_SERVER setting")
-        print(f"For SendGrid use: smtp.sendgrid.net")
-        print(f"For Mailgun use: smtp.mailgun.org\n")
+        print(f"Railway may be blocking DNS resolution")
+        print(f"This should have been caught by IP fallback!\n")
         return False
         
     except socket.timeout as e:
         print(f"\n❌ CONNECTION TIMEOUT!")
         print(f"Error: {e}")
-        print(f"Cannot connect to {MAIL_SERVER}:{MAIL_PORT}")
-        print(f"The server might be blocking this port\n")
+        print(f"Cannot connect to {MAIL_SERVER}:{MAIL_PORT}\n")
         return False
     
     except ConnectionRefusedError as e:
         print(f"\n❌ CONNECTION REFUSED!")
         print(f"Error: {e}")
-        print(f"The server refused connection to {MAIL_SERVER}:{MAIL_PORT}")
-        print(f"Try switching to port 465 (SSL) or 587 (TLS)\n")
+        print(f"Server refused connection to {MAIL_SERVER}:{MAIL_PORT}\n")
         return False
         
     except Exception as e:
@@ -184,7 +204,6 @@ def send_credentials_email(to_email, registration_number, password):
     
     result = send_email(to_email, subject, html_content)
     
-    # Log the result
     if result:
         print(f"✅ Credentials email sent successfully to {to_email}")
     else:
