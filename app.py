@@ -4,6 +4,9 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+# Load environment variables
+load_dotenv()  # ← ADD THIS
 from auth import generate_token, verify_token, generate_credentials
 from email_service import send_credentials_email
 from config import Config
@@ -142,6 +145,8 @@ def login():
     data = request.json
     reg_number = data.get('registration_number')
     password = data.get('password')
+    print("🟦 DB Using:", db.engine.url)
+
     
     user = User.query.filter_by(registration_number=reg_number).first()
     
@@ -156,6 +161,8 @@ def login():
         'token': token,
         'user': user.to_dict()
     }), 200
+    
+
 
 # ==================== USER PROFILE ROUTES ====================
 
@@ -327,7 +334,26 @@ def get_all_users():
 
 
 
+
+with app.app_context():
+    db.create_all()
+    admin_email = 'admin@sampark.com'
+    existing = User.query.filter_by(email=admin_email).first()
+    if existing:
+            print("Admin already exists!")
+    else:
+            admin = User(
+            name='Admin User',
+            email=admin_email,
+            phone='1234567890',
+            organization='Sampark',
+            registration_number='ADMIN001',
+            status='approved',
+            is_admin=True
+        )
+            admin.set_password('xd62oum3mt')
+            db.session.add(admin)
+            db.session.commit()
+            print("Admin created! Login: ADMIN001 / xd62oum3mt")
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)

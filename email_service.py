@@ -2,6 +2,10 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import socket
+from dotenv import load_dotenv
+
+load_dotenv()
 
 MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
@@ -12,6 +16,25 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 def send_email(to_email, subject, html_content):
     """Send email using SMTP"""
+    print("\n" + "="*50)
+    print("📧 EMAIL DEBUG INFO:")
+    print("="*50)
+    print(f"MAIL_SERVER: {MAIL_SERVER}")
+    print(f"MAIL_PORT: {MAIL_PORT}")
+    print(f"MAIL_USERNAME: {MAIL_USERNAME}")
+    print(f"MAIL_PASSWORD: {'SET' if MAIL_PASSWORD else 'NOT SET'} (length: {len(MAIL_PASSWORD) if MAIL_PASSWORD else 0})")
+    print(f"MAIL_FROM: {MAIL_FROM}")
+    print(f"TO: {to_email}")
+    print("="*50 + "\n")
+    
+    if not MAIL_USERNAME:
+        print("❌ ERROR: MAIL_USERNAME is not set!")
+        return False
+    
+    if not MAIL_PASSWORD:
+        print("❌ ERROR: MAIL_PASSWORD is not set!")
+        return False
+    
     try:
         msg = MIMEMultipart('alternative')
         msg['From'] = MAIL_FROM
@@ -21,14 +44,56 @@ def send_email(to_email, subject, html_content):
         html_part = MIMEText(html_content, 'html')
         msg.attach(html_part)
         
-        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT) as server:
-            server.starttls()
-            server.login(MAIL_USERNAME, MAIL_PASSWORD)
-            server.send_message(msg)
+        print(f"📧 Connecting to {MAIL_SERVER}:{MAIL_PORT}...")
         
+        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=30) as server:
+            print(f"✅ Connected to SMTP server")
+            
+            print(f"📧 Starting TLS...")
+            server.starttls()
+            print(f"✅ TLS started")
+            
+            print(f"📧 Logging in as {MAIL_USERNAME}...")
+            server.login(MAIL_USERNAME, MAIL_PASSWORD)
+            print(f"✅ Login successful")
+            
+            print(f"📧 Sending message...")
+            server.send_message(msg)
+            print(f"✅ Message sent")
+        
+        print(f"\n✅ EMAIL SENT SUCCESSFULLY to {to_email}\n")
         return True
+        
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"\n❌ SMTP AUTHENTICATION FAILED!")
+        print(f"Error: {e}")
+        print(f"This usually means:")
+        print(f"  1. Wrong username or password")
+        print(f"  2. Not using App Password (must be 16 chars)")
+        print(f"  3. 2-Step Verification not enabled\n")
+        return False
+        
+    except socket.gaierror as e:
+        print(f"\n❌ DNS RESOLUTION FAILED!")
+        print(f"Error: {e}")
+        print(f"Cannot resolve hostname: {MAIL_SERVER}")
+        print(f"Check your MAIL_SERVER setting\n")
+        return False
+        
+    except socket.timeout as e:
+        print(f"\n❌ CONNECTION TIMEOUT!")
+        print(f"Error: {e}")
+        print(f"Cannot connect to {MAIL_SERVER}:{MAIL_PORT}\n")
+        return False
+        
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        print(f"\n❌ EMAIL FAILED!")
+        print(f"Error Type: {type(e).__name__}")
+        print(f"Error Message: {e}")
+        import traceback
+        print("\nFull Traceback:")
+        traceback.print_exc()
+        print()
         return False
 
 def send_credentials_email(to_email, registration_number, password):
@@ -88,6 +153,16 @@ def send_credentials_email(to_email, registration_number, password):
     </body>
     </html>
     """
+    
+    result = send_email(to_email, subject, html_content)
+    
+    # Log the result
+    if result:
+        print(f"✅ Credentials email sent successfully to {to_email}")
+    else:
+        print(f"❌ Failed to send credentials email to {to_email}")
+    
+    return result  # ← IMPORTANT: Return the actual result
     
     return send_email(to_email, subject, html_content)
 
