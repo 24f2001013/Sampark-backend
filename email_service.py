@@ -12,14 +12,6 @@ SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send"
 
 
 def send_email(to_email, subject, html_content):
-    if not SENDGRID_API_KEY:
-        print("❌ SENDGRID_API_KEY not set")
-        return False
-
-    if not MAIL_FROM:
-        print("❌ MAIL_FROM not set or not verified in SendGrid")
-        return False
-
     payload = {
         "personalizations": [
             {
@@ -27,9 +19,7 @@ def send_email(to_email, subject, html_content):
                 "subject": subject
             }
         ],
-        "from": {
-            "email": MAIL_FROM
-        },
+        "from": {"email": MAIL_FROM},
         "content": [
             {
                 "type": "text/html",
@@ -43,23 +33,33 @@ def send_email(to_email, subject, html_content):
         "Content-Type": "application/json"
     }
 
-    try:
-        response = requests.post(
-            SENDGRID_URL,
-            headers=headers,
-            json=payload,
-            timeout=15
-        )
+    response = requests.post(
+        SENDGRID_URL,
+        headers=headers,
+        json=payload,
+        timeout=15
+    )
 
-        if response.status_code in (200, 202):
-            print(f"✅ Email sent to {to_email}")
-            return True
+    return response.status_code in (200, 202)
 
-        print("❌ SendGrid error")
-        print("Status:", response.status_code)
-        print("Response:", response.text)
-        return False
 
-    except requests.RequestException as e:
-        print("❌ Network error while sending email:", e)
-        return False
+# ============================
+# REQUIRED WRAPPER FUNCTIONS
+# ============================
+
+def send_credentials_email(user_email, username, password):
+    html = f"""
+    <h2>Your Sampark Admin Account</h2>
+    <p><b>Username:</b> {username}</p>
+    <p><b>Password:</b> {password}</p>
+    <p>Login here: <a href="{FRONTEND_URL}">{FRONTEND_URL}</a></p>
+    """
+    return send_email(user_email, "Your Sampark Login Credentials", html)
+
+
+def send_registration_confirmation(user_email):
+    html = """
+    <h2>Registration Successful</h2>
+    <p>Your account has been created successfully.</p>
+    """
+    return send_email(user_email, "Registration Successful", html)
