@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-MAIL_PORT = int(os.getenv('MAIL_PORT', 465))  # Changed default to 465
+MAIL_PORT = int(os.getenv('MAIL_PORT', 587))  # Changed default to 587 for SendGrid
 MAIL_USERNAME = os.getenv('MAIL_USERNAME')
 MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
 MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME)
@@ -61,7 +61,7 @@ def send_email(to_email, subject, html_content):
                 server.send_message(msg)
                 print(f"✅ Message sent")
         else:
-            # Port 587 uses STARTTLS
+            # Port 587 uses STARTTLS (SendGrid, Mailgun, most services)
             with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=30) as server:
                 print(f"✅ Connected to SMTP server")
                 
@@ -85,8 +85,9 @@ def send_email(to_email, subject, html_content):
         print(f"Error: {e}")
         print(f"This usually means:")
         print(f"  1. Wrong username or password")
-        print(f"  2. Not using App Password (must be 16 chars)")
-        print(f"  3. 2-Step Verification not enabled\n")
+        print(f"  2. For SendGrid: MAIL_USERNAME must be 'apikey' exactly")
+        print(f"  3. For SendGrid: MAIL_PASSWORD must be your API key (starts with SG.)")
+        print(f"  4. For Gmail: Not using App Password (must be 16 chars)\n")
         return False
         
     except socket.gaierror as e:
@@ -94,7 +95,8 @@ def send_email(to_email, subject, html_content):
         print(f"Error: {e}")
         print(f"Cannot resolve hostname: {MAIL_SERVER}")
         print(f"Check your MAIL_SERVER setting")
-        print(f"Consider using port 465 instead of 587\n")
+        print(f"For SendGrid use: smtp.sendgrid.net")
+        print(f"For Mailgun use: smtp.mailgun.org\n")
         return False
         
     except socket.timeout as e:
@@ -227,7 +229,3 @@ def send_registration_confirmation(to_email, name, registration_number):
     """
     
     return send_email(to_email, subject, html_content)
-
-
-
-
