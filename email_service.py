@@ -5,17 +5,18 @@ import os
 import socket
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
 
 MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+MAIL_PORT = int(os.getenv('MAIL_PORT', 465))  # Changed default to 465
 MAIL_USERNAME = os.getenv('MAIL_USERNAME')
 MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
 MAIL_FROM = os.getenv('MAIL_FROM', MAIL_USERNAME)
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
 def send_email(to_email, subject, html_content):
-    """Send email using SMTP"""
+    """Send email using SMTP with support for both port 587 (TLS) and 465 (SSL)"""
     print("\n" + "="*50)
     print("📧 EMAIL DEBUG INFO:")
     print("="*50)
@@ -46,20 +47,35 @@ def send_email(to_email, subject, html_content):
         
         print(f"📧 Connecting to {MAIL_SERVER}:{MAIL_PORT}...")
         
-        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=30) as server:
-            print(f"✅ Connected to SMTP server")
-            
-            print(f"📧 Starting TLS...")
-            server.starttls()
-            print(f"✅ TLS started")
-            
-            print(f"📧 Logging in as {MAIL_USERNAME}...")
-            server.login(MAIL_USERNAME, MAIL_PASSWORD)
-            print(f"✅ Login successful")
-            
-            print(f"📧 Sending message...")
-            server.send_message(msg)
-            print(f"✅ Message sent")
+        # Use SMTP_SSL for port 465, use SMTP with STARTTLS for port 587
+        if MAIL_PORT == 465:
+            # Port 465 uses SSL from the start
+            with smtplib.SMTP_SSL(MAIL_SERVER, MAIL_PORT, timeout=30) as server:
+                print(f"✅ Connected to SMTP server with SSL")
+                
+                print(f"📧 Logging in as {MAIL_USERNAME}...")
+                server.login(MAIL_USERNAME, MAIL_PASSWORD)
+                print(f"✅ Login successful")
+                
+                print(f"📧 Sending message...")
+                server.send_message(msg)
+                print(f"✅ Message sent")
+        else:
+            # Port 587 uses STARTTLS
+            with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=30) as server:
+                print(f"✅ Connected to SMTP server")
+                
+                print(f"📧 Starting TLS...")
+                server.starttls()
+                print(f"✅ TLS started")
+                
+                print(f"📧 Logging in as {MAIL_USERNAME}...")
+                server.login(MAIL_USERNAME, MAIL_PASSWORD)
+                print(f"✅ Login successful")
+                
+                print(f"📧 Sending message...")
+                server.send_message(msg)
+                print(f"✅ Message sent")
         
         print(f"\n✅ EMAIL SENT SUCCESSFULLY to {to_email}\n")
         return True
@@ -77,13 +93,22 @@ def send_email(to_email, subject, html_content):
         print(f"\n❌ DNS RESOLUTION FAILED!")
         print(f"Error: {e}")
         print(f"Cannot resolve hostname: {MAIL_SERVER}")
-        print(f"Check your MAIL_SERVER setting\n")
+        print(f"Check your MAIL_SERVER setting")
+        print(f"Consider using port 465 instead of 587\n")
         return False
         
     except socket.timeout as e:
         print(f"\n❌ CONNECTION TIMEOUT!")
         print(f"Error: {e}")
-        print(f"Cannot connect to {MAIL_SERVER}:{MAIL_PORT}\n")
+        print(f"Cannot connect to {MAIL_SERVER}:{MAIL_PORT}")
+        print(f"The server might be blocking this port\n")
+        return False
+    
+    except ConnectionRefusedError as e:
+        print(f"\n❌ CONNECTION REFUSED!")
+        print(f"Error: {e}")
+        print(f"The server refused connection to {MAIL_SERVER}:{MAIL_PORT}")
+        print(f"Try switching to port 465 (SSL) or 587 (TLS)\n")
         return False
         
     except Exception as e:
@@ -95,6 +120,7 @@ def send_email(to_email, subject, html_content):
         traceback.print_exc()
         print()
         return False
+
 
 def send_credentials_email(to_email, registration_number, password):
     """Send login credentials to newly approved user"""
@@ -162,9 +188,8 @@ def send_credentials_email(to_email, registration_number, password):
     else:
         print(f"❌ Failed to send credentials email to {to_email}")
     
-    return result  # ← IMPORTANT: Return the actual result
-    
-    return send_email(to_email, subject, html_content)
+    return result
+
 
 def send_registration_confirmation(to_email, name, registration_number):
     """Send confirmation email after registration submission"""
@@ -202,3 +227,7 @@ def send_registration_confirmation(to_email, name, registration_number):
     """
     
     return send_email(to_email, subject, html_content)
+
+
+
+
