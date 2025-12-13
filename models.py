@@ -46,10 +46,39 @@ class User(db.Model):
     
     @staticmethod
     def generate_registration_number():
-        """Generate unique registration number like SAMP2024001"""
+        """Generate unique registration number like SAMP2025001"""
         year = datetime.now().year
-        count = User.query.count() + 1
-        return f"SAMP{year}{count:04d}"
+        
+        # Keep trying until we get a unique number
+        max_attempts = 100
+        for attempt in range(max_attempts):
+            # Get the count of users with registration numbers starting with this year
+            year_prefix = f'SAMP{year}'
+            existing = User.query.filter(
+                User.registration_number.like(f'{year_prefix}%')
+            ).order_by(User.registration_number.desc()).first()
+            
+            if existing:
+                # Extract the number part and increment
+                try:
+                    last_num = int(existing.registration_number.replace(year_prefix, ''))
+                    next_num = last_num + 1
+                except:
+                    next_num = 1
+            else:
+                # First registration of the year
+                next_num = 1
+            
+            new_reg_number = f"{year_prefix}{next_num:04d}"
+            
+            # Check if this number already exists (double-check for race conditions)
+            exists = User.query.filter_by(registration_number=new_reg_number).first()
+            if not exists:
+                return new_reg_number
+        
+        # Fallback: use timestamp if all else fails
+        import time
+        return f"SAMP{year}{int(time.time()) % 10000:04d}"
     
     def to_dict(self, include_themes=False):
         data = {
